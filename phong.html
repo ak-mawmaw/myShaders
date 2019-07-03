@@ -21,8 +21,8 @@
 	varying vec4 globalNorm;
 	varying vec4 globalPos;
 	uniform vec3 u_ambient;
-    uniform vec3 u_diffuse;
-    uniform vec3 u_specular;
+	uniform vec3 u_diffuse;
+	uniform vec3 u_specular;
 
 	void main(){
 	//Lambertian diffuse component
@@ -31,7 +31,7 @@
 	float cosine = dot(N,L);
 	float k_lambert = max(cosine, 0.);
 	vec3 lightColor = vec3(1., 0., 0.);
-	vec3 u_diffuse = (k_lambert * lightColor ) / (length(L) * length(L));
+	vec3 u_diffuse = k_lambert * lightColor ;
 
 	//add in an ambient color
 	vec3 u_ambient = vec3(0., 0.1, 0.);
@@ -40,26 +40,31 @@
 	vec3 specularLight = vec3(0., 0., 1.);
 	vec3 r = reflect(-L.xyz, N.xyz);
 	float cosAlpha = max(dot(r, L.xyz), 0.);
-	float k_specular = 1.0;
-	vec3 u_specular = k_specular * pow(cosAlpha, 1.) * specularLight;
+	float k_specular = 1.;
+	vec3 u_specular = k_specular * pow(cosAlpha, 9.) * specularLight;
+
+	// assume that the material itself has a color
+	vec3 material_color = vec3(0.39, 0.26, 0.13);
 
 	//combine their effects
-	vec3 color = u_diffuse + u_specular;
+	vec3 color = material_color + u_diffuse + u_specular;
 	gl_FragColor = vec4(color, 1.);
 }
 </script>
 <script>
 	var container;
 	var camera, scene, renderer;
-	var uniforms;
+	var uniforms, mesh;
 	init();
 	animate();
 	function init() {
 		container = document.getElementById('container');
 		camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
 		camera.position.z = 10;
+		camera.lookAt(0,0,0)
 		scene = new THREE.Scene();
-		var geometry = new THREE.SphereBufferGeometry(2, 32, 32);
+		//var geometry = new THREE.SphereBufferGeometry(2, 32, 32);
+		var geometry = new THREE.BoxGeometry(2,3,3);
 		uniforms = {
 			u_time: { type: "f", value: 1.0 },
 			u_resolution: { type: "v2", value: new THREE.Vector2() },
@@ -80,7 +85,7 @@
 			// scene.add(light);
 			// let helper = new THREE.DirectionalLightHelper(light, 5);
 			// scene.add(helper);
-			var mesh = new THREE.Mesh(geometry, material);
+			mesh = new THREE.Mesh(geometry, material);
 			scene.add(mesh);
 			renderer = new THREE.WebGLRenderer();
 			renderer.setSize(window.innerWidth, window.innerHeight);
@@ -100,6 +105,8 @@
 		function animate() {
 			requestAnimationFrame(animate);
 			render();
+			mesh.rotation.x += 0.01;
+			mesh.rotation.y += 0.01;
 		}
 		function render() {
 			uniforms.u_time.value += 0.05;
