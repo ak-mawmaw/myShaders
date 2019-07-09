@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title> Lambertian Shader!</title>
+</head>
+
+<body>
+	<div id="container"></div>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/106/three.js"></script>
+	<script id="vertexShader" type="x-shader/x-vertex">
+		varying vec4 globalNorm;
+		varying vec4 globalPos;
+		void main() {
+		globalNorm = modelViewMatrix * (vec4(normal, 0));
+		globalPos = modelViewMatrix * vec4(position, 1);
+		gl_Position = projectionMatrix * globalPos;
+	}
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+	precision mediump float;	
+	varying vec4 globalNorm;
+	varying vec4 globalPos;
+	uniform vec3 u_ambient;
+	uniform vec3 u_diffuse;
+	uniform vec3 u_specular;
+	#define PI 3.14159265359
+	
+	//half vector computation
+	
+
+	//diffuse contribution scaling
+ 	float diff_scaling(in float d, in float s){
+	return d = d * (1. - s) / PI;
+	}
+
+	//  quick square function
+	float pow2 (const in float a){
+	return a * a;
+	}
+
+
+	// Cook Torrance normal distribution
+	float distribute(in float dotNH, in float r){
+	return 1./PI * pow2((pow2(r) / pow2(dotNH) * (pow2(r) * pow2(r) - 1.)) + 1.);
+	}
+
+	//shadowing and masking terms
+	float shadow(in vec4 Wl, in vec4 Wv, in vec4 norm, in float r){
+	return 
+	1./(dot(Wl, norm) * (1. - pow2(r)/2. + pow2(r)/2.))  * 1./(dot(Wv , norm) *  (1. - pow2(r)/2. + pow2(r)/2.));
+	}
+
+
+	//Schlick approximation  https://github.com/mrdoob/three.js/blob/dev/src/renderers/shaders/ShaderChunk/bsdfs.glsl.js
+	vec3 F_Schlick( const in vec3 specularColor, const in float dotLH ) {
+
+
+	/* 
+	Optimized variant (presented by Epic at SIGGRAPH '13)
+	https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
+	*/
+	
+
+	float fresnel = exp2( ( -5.55473 * dotLH - 6.98316 ) * dotLH );
+	return ( 1.0 - specularColor ) * fresnel + specularColor;
+	}
+
+
+	void main(){ 
+    vec4 N = normalize(globalNorm);
+	vec4 V = normalize (vec4(cameraPosition, 1.));
+	vec4 L = vec4(10., 4., 3., 1.);
+	vec4 H = normalize((N + L) * 0.5);
+        
+	gl_FragColor = vec4(vec3(0.5), 1.);
+	}	
+</script>
+<script>
+	var container;
+	var camera, scene, renderer;
+	var uniforms, mesh;
+	init();
+	animate();
+	function init() {
+		container = document.getElementById('container');
+		camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 2000);
+		camera.position.z = 10;
+		camera.lookAt(0,0,0)
+		scene = new THREE.Scene();
+		//var geometry = new THREE.SphereBufferGeometry(2, 32, 32);
+		var geometry = new THREE.BoxGeometry(2,3,3);
+		uniforms = {
+			u_time: { type: "f", value: 1.0 },
+			u_resolution: { type: "v2", value: new THREE.Vector2() },
+			u_mouse: { type: "v2", value: new THREE.Vector2()},
+			u_ambient: {type : "v3", value: new THREE.Vector3()},
+			u_diffuse: {type : "v3", value: new THREE.Vector3()},
+			u_specular: {type : "v3", value: new THREE.Vector3()}
+		};
+		var material = new THREE.ShaderMaterial({
+			uniforms: uniforms,
+			vertexShader: document.getElementById('vertexShader').textContent,
+			fragmentShader: document.getElementById('fragmentShader').textContent
+		});
+			//let basic = new THREE.MeshBasicMaterial();
+			/** LIGHTS!!! **/
+			// let light = new THREE.DirectionalLight(0xffff3f, 0,5);
+			// light.position = new THREE.Vector3(1,1,0);
+			// scene.add(light);
+			// let helper = new THREE.DirectionalLightHelper(light, 5);
+			// scene.add(helper);
+			mesh = new THREE.Mesh(geometry, material);
+			scene.add(mesh);
+			renderer = new THREE.WebGLRenderer();
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			container.appendChild(renderer.domElement);
+			onWindowResize();
+			window.addEventListener('resize', onWindowResize, false);
+			document.onmousemove = function (e) {
+				uniforms.u_mouse.value.x = e.pageX
+				uniforms.u_mouse.value.y = e.pageY
+			}
+		}
+		function onWindowResize(event) {
+			renderer.setSize(window.innerWidth, window.innerHeight);
+			uniforms.u_resolution.value.x = renderer.domElement.width;
+			uniforms.u_resolution.value.y = renderer.domElement.height;
+		}
+		function animate() {
+			requestAnimationFrame(animate);
+			render();
+			mesh.rotation.x += 0.01;
+			mesh.rotation.y += 0.01;
+		}
+		function render() {
+			uniforms.u_time.value += 0.05;
+			renderer.render(scene, camera);
+		}
+	</script>
+</body>
+
+</html>
